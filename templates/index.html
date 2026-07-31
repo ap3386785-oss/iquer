@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid-container">
+    
+    <!-- Left Column: Webcam Verification Stream -->
+    <div class="glass-card col-6">
+        <div class="card-title">
+            <span id="camera-card-title">Security Scanner & Face Verification</span>
+            <span id="face-badge" class="status-badge badge-warning">Camera Idle</span>
+        </div>
+
+        <div class="webcam-container" id="terminal-camera-box">
+            <video id="terminal-webcam" class="webcam-feed" autoplay playsinline style="display: none;"></video>
+            
+            <!-- Target boundary drawn over face if detected by backend -->
+            <div id="face-target-box" class="scanner-target"></div>
+            
+            <!-- AI Scanner HUD overlay -->
+            <div class="webcam-overlay">
+                <!-- Status chip -->
+                <div class="hud-status-chip" id="hud-status">
+                    <div class="status-dot"></div>
+                    <span id="hud-status-text">Idle</span>
+                </div>
+                
+                <div class="scanner-frame" id="terminal-scanner-outline">
+                    <div class="hud-corner hud-tl"></div>
+                    <div class="hud-corner hud-tr"></div>
+                    <div class="hud-corner hud-bl"></div>
+                    <div class="hud-corner hud-br"></div>
+                    <div class="scanner-line"></div>
+                </div>
+            </div>
+            
+            <div class="camera-placeholder-text" id="terminal-camera-loading">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span id="camera-loading-text">Start camera to begin purchase verification</span>
+            </div>
+        </div>
+
+        <div class="flex-between mt-1">
+            <button type="button" id="start-scan-btn" class="btn btn-primary" onclick="startCameraVerification()" style="width: 100%;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                Initialize Face scan
+            </button>
+        </div>
+
+        <!-- Notification Banner -->
+        <div id="terminal-notification" class="notification-banner warning mt-2" style="display: none;">
+            <span id="terminal-notification-text"></span>
+        </div>
+    </div>
+
+    <!-- Right Column: Verification Flow & Checkout Wizard -->
+    <div class="glass-card col-6" style="display: flex; flex-direction: column;">
+        <div class="card-title">
+            <span>POS Checkout Terminal</span>
+            <span id="step-badge" class="status-badge badge-warning">Verification</span>
+        </div>
+
+        <!-- Wizard Step Nodes -->
+        <div class="terminal-steps">
+            <div class="step-node active" id="step-node-1" title="Face Scan">1</div>
+            <div class="step-node" id="step-node-2" title="Check Limits">2</div>
+            <div class="step-node" id="step-node-3" title="Select Qty">3</div>
+            <div class="step-node" id="step-node-4" title="Final Match">4</div>
+            <div class="step-node" id="step-node-5" title="Completed">5</div>
+        </div>
+
+        <!-- STEP 1: INITIAL IDENTITY SELECTION -->
+        <div id="step-panel-1" class="wizard-panel fade-in">
+            <h3 style="margin-bottom: 1rem; font-family: var(--font-heading);">Step 1: Verify Customer Identity</h3>
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                Select a customer profile for verification, or use 1:N face identification. Click "Initialize Face Scan" on the left camera panel to perform matching.
+            </p>
+            
+            <div class="form-group">
+                <label for="terminal-customer-select">Customer Profiler</label>
+                <select id="terminal-customer-select" class="form-control">
+                    <option value="">-- Auto-Detect Face (1:N Database Search) --</option>
+                    {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.id_number }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="simulation-panel" style="padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning);">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    </svg>
+                    <strong>Face verification matching note:</strong> Since we are testing in diverse environments, if your webcam is not connected or you want to match mock database profiles, the fallback module will automatically compare captured frames or use keypoint textures.
+                </p>
+            </div>
+        </div>
+
+        <!-- STEP 2: ELIGIBILITY & LIMIT CHECKS -->
+        <div id="step-panel-2" class="wizard-panel fade-in" style="display: none;">
+            <h3 style="margin-bottom: 1rem; font-family: var(--font-heading);">Step 2: ID & Limit Verification</h3>
+            
+            <!-- Customer Card Info -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center;">
+                <img id="card-cust-photo" src="" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-color);">
+                <div>
+                    <h4 id="card-cust-name" style="font-size: 1.1rem; font-weight: 600;">Customer Name</h4>
+                    <p id="card-cust-id" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.15rem;">Aadhaar: -</p>
+                    <p id="card-cust-dob" style="font-size: 0.85rem; color: var(--text-secondary);">DOB: -</p>
+                </div>
+            </div>
+
+            <!-- Verified Identity Document Display -->
+            <div id="card-id-doc-wrapper" style="margin-bottom: 1.5rem; display: none;">
+                <label style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block; margin-bottom: 0.5rem;">Verified Government ID Document</label>
+                <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.25); text-align: center; padding: 0.5rem;">
+                    <img id="card-id-doc-photo" src="" style="max-width: 100%; max-height: 180px; border-radius: 6px; display: block; margin: 0 auto; object-fit: contain;">
+                </div>
+            </div>
+
+            <!-- Limits Info -->
+            <div class="limit-bar-wrapper">
+                <div class="limit-info">
+                    <span>Weekly Purchase Limit (180 ml)</span>
+                    <span id="weekly-limit-text">Remaining: 180 ml</span>
+                </div>
+                <div class="limit-bar-outer">
+                    <div id="weekly-limit-bar" class="limit-bar-inner" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <div class="limit-bar-wrapper">
+                <div class="limit-info">
+                    <span>Monthly Purchase Limit (920 ml)</span>
+                    <span id="monthly-limit-text">Remaining: 920 ml</span>
+                </div>
+                <div class="limit-bar-outer">
+                    <div id="monthly-limit-bar" class="limit-bar-inner" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <div class="flex-between mt-1" style="background: rgba(0,0,0,0.15); padding: 0.8rem; border-radius: 8px;">
+                <span style="font-size: 0.9rem; color: var(--text-secondary);">Previously Purchased Quantity:</span>
+                <span id="total-purchased-qty" style="font-weight: 700; color: var(--secondary);">0 ml</span>
+            </div>
+
+            <button type="button" class="btn btn-primary mt-2" onclick="goToStep(3)" style="width: 100%;">
+                Proceed to Purchase
+            </button>
+        </div>
+
+        <!-- STEP 3: QUANTITY SELECTOR -->
+        <div id="step-panel-3" class="wizard-panel fade-in" style="display: none;">
+            <h3 style="margin-bottom: 1rem; font-family: var(--font-heading);">Step 3: Enter Purchase Quantity</h3>
+            
+            <div class="form-group">
+                <label for="purchase-quantity">Select Quantity (ml)</label>
+                <div class="flex-gap-1" style="margin-bottom: 1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="setQuantity(50)" style="flex: 1;">50 ml</button>
+                    <button type="button" class="btn btn-secondary" onclick="setQuantity(90)" style="flex: 1;">90 ml</button>
+                    <button type="button" class="btn btn-secondary" onclick="setQuantity(180)" style="flex: 1;">180 ml</button>
+                </div>
+                <input type="number" id="purchase-quantity" class="form-control" placeholder="Or enter custom amount in ml" oninput="validateQuantityInput()">
+            </div>
+
+            <div id="limit-error-msg" class="notification-banner danger" style="display: none; padding: 0.75rem;">
+                <span>Exceeds remaining weekly or monthly purchase limit!</span>
+            </div>
+
+            <div class="flex-between mt-1" style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="goToStep(2)">Back</button>
+                <button type="button" id="qty-confirm-btn" class="btn btn-primary" onclick="goToStep(4)" disabled>Confirm Quantity</button>
+            </div>
+        </div>
+
+        <!-- STEP 4: FINAL CHECKOUT FACE CONFIRMATION -->
+        <div id="step-panel-4" class="wizard-panel fade-in" style="display: none;">
+            <h3 style="margin-bottom: 1rem; font-family: var(--font-heading);">Step 4: Secure Final Face Verification</h3>
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                To complete the purchase of <strong id="summary-quantity" style="color: var(--primary);">0 ml</strong>, the customer must perform a final live face verification. This ensures the same customer is completing the transaction.
+            </p>
+
+            <div style="background: rgba(0,255,136,0.05); border: 1px dashed var(--primary); border-radius: 8px; padding: 1rem; text-align: center; margin-bottom: 1.5rem;">
+                <span style="font-weight: 600; color: var(--primary);">Checkout Security Scan Required</span>
+            </div>
+
+            <div class="flex-between">
+                <button type="button" class="btn btn-secondary" onclick="goToStep(3)">Back</button>
+                <button type="button" id="submit-purchase-btn" class="btn btn-primary" onclick="submitFinalCheckout()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Submit & Verify Checkout
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 5: PURCHASE SUCCESS RECEIPT -->
+        <div id="step-panel-5" class="wizard-panel fade-in" style="display: none; flex-grow: 1;">
+            <h3 style="margin-bottom: 1rem; font-family: var(--font-heading); text-align: center; color: var(--primary);">Purchase Successful!</h3>
+            
+            <div class="receipt-wrapper mt-1">
+                <div class="receipt-header">
+                    <span class="receipt-title">AEGIS SPIRIT RECEIPT</span>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">SECURE PURCHASE SYSTEM</p>
+                </div>
+                
+                <div class="receipt-row">
+                    <span>Transaction ID:</span>
+                    <span id="rec-tx-id">TX-MOCK-99120</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Customer Name:</span>
+                    <span id="rec-cust-name">-</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Date & Time:</span>
+                    <span id="rec-datetime">-</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Shop Name:</span>
+                    <span id="rec-shop-name">-</span>
+                </div>
+                
+                <div class="receipt-row total">
+                    <span>Purchased Volume:</span>
+                    <span id="rec-qty">-</span>
+                </div>
+                
+                <div class="receipt-row" style="margin-top: 0.5rem; border-top: 1px dashed var(--border-color); padding-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+                    <span>Remaining Weekly:</span>
+                    <span id="rec-rem-weekly">-</span>
+                </div>
+                <div class="receipt-row" style="font-size: 0.8rem; color: var(--text-secondary);">
+                    <span>Remaining Monthly:</span>
+                    <span id="rec-rem-monthly">-</span>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-primary mt-2" onclick="resetTerminal()" style="width: 100%;">
+                New Customer Transaction
+            </button>
+        </div>
+    </div>
+
+    <!-- Developer Sandbox Panel -->
+    <div class="glass-card col-12 simulation-panel">
+        <div class="card-title" style="color: #9d4edd;">
+            <span>Developer Sandbox & Verification Simulation</span>
+            <span class="status-badge" style="background: rgba(123, 44, 191, 0.2); color: #9d4edd;">ADMIN ONLY</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; align-items: center;">
+            <div class="sim-switch">
+                <span>Force Face Verification Fail</span>
+                <input type="checkbox" id="sim-force-fail" style="width: 18px; height: 18px; cursor: pointer;">
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                Toggle the switch above to simulate a face verification mismatch during scans. This is useful for verifying that the system blocks transactions and generates <strong>AI Risk Alerts</strong> on the dashboard.
+            </p>
+        </div>
+    </div>
+</div>
+
+<canvas id="terminal-canvas" style="display: none;"></canvas>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/terminal.js') }}"></script>
+{% endblock %}

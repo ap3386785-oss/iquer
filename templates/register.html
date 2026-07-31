@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid-container">
+    <!-- Registration Form -->
+    <div class="glass-card col-6">
+        <div class="card-title">
+            <span>Customer Demographics</span>
+            <span class="status-badge badge-warning">Step 1: Fill Form</span>
+        </div>
+        
+        <div id="register-notification" class="notification-banner warning" style="display: none;">
+            <span class="notification-text"></span>
+        </div>
+
+        <form id="register-form" onsubmit="submitRegistration(event)">
+            <div class="form-group">
+                <label for="reg-id-type">Government ID Type</label>
+                <select id="reg-id-type" class="form-control" required>
+                    <option value="Aadhaar Card">Aadhaar Card</option>
+                    <option value="Driving Licence">Driving Licence</option>
+                </select>
+            </div>
+            
+            <div class="notification-banner success" style="margin-bottom: 1rem;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span style="font-size: 0.85rem; vertical-align: middle;">AI will automatically extract Name, ID Number, and Date of Birth from your ID document.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="reg-photo-file">Upload Official Profile Photo (Required)</label>
+                <input type="file" id="reg-photo-file" class="form-control" accept="image/*" required onchange="onProfileFileSelected()">
+            </div>
+
+            <div class="form-group">
+                <label for="reg-id-file">Upload Government ID Document (e.g. Aadhaar Card scan)</label>
+                <input type="file" id="reg-id-file" class="form-control" accept="image/*" required onchange="onIdFileSelected()">
+            </div>
+
+            <button type="submit" id="register-submit-btn" class="btn btn-primary mt-1" disabled style="width: 100%;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Secure Save & Register
+            </button>
+        </form>
+    </div>
+
+    <!-- Webcam live verification -->
+    <div class="glass-card col-6">
+        <div class="card-title">
+            <span>Live Facial Verification</span>
+            <span class="status-badge badge-success">Webcam Active</span>
+        </div>
+
+        <div class="webcam-container" id="camera-box">
+            <video id="webcam-stream" class="webcam-feed" autoplay playsinline></video>
+            
+            <!-- Custom Scanning Overlay -->
+            <div class="webcam-overlay">
+                <!-- Status chip -->
+                <div class="hud-status-chip" id="register-hud-status">
+                    <div class="status-dot"></div>
+                    <span id="register-hud-status-text">Active</span>
+                </div>
+                
+                <div class="scanner-frame" id="scanner-outline">
+                    <div class="hud-corner hud-tl"></div>
+                    <div class="hud-corner hud-tr"></div>
+                    <div class="hud-corner hud-bl"></div>
+                    <div class="hud-corner hud-br"></div>
+                    <div class="scanner-line"></div>
+                </div>
+            </div>
+            
+            <div class="camera-placeholder-text" id="camera-loading" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Initializing Laptop Camera...</span>
+            </div>
+        </div>
+
+        <div class="flex-between mt-1">
+            <button type="button" class="btn btn-secondary" onclick="initializeWebcam()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                Reset Camera
+            </button>
+            <button type="button" class="btn btn-primary" onclick="captureSnapshot()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Capture Photo
+            </button>
+        </div>
+
+        <!-- Captured Image Preview -->
+        <div id="capture-preview-box" class="mt-2" style="display: none; text-align: center;">
+            <h4 style="margin-bottom: 0.5rem; text-align: left; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase;">Captured Image Preview</h4>
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; display: inline-block;">
+                <img id="capture-preview" src="" style="max-width: 100%; height: 150px; display: block; transform: scaleX(-1);">
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Developer Control Panel -->
+    <div class="glass-card col-12 simulation-panel">
+        <div class="card-title" style="color: #9d4edd;">
+            <span>Developer Sandbox & Simulation Controls</span>
+            <span class="status-badge" style="background: rgba(123, 44, 191, 0.2); color: #9d4edd;">ADMIN ONLY</span>
+        </div>
+        <div class="flex-between">
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                Skip manual data entry! Click "Populate Demo Customers" to pre-load the system database with mock profiles (including adults, underage minors, and pre-existing purchase records).
+            </p>
+            <button type="button" class="btn btn-secondary" onclick="populateDatabase()" style="border-color: rgba(123, 44, 191, 0.4); color: #b5179e;">
+                Populate Demo Customers
+            </button>
+        </div>
+    </div>
+</div>
+
+<canvas id="snapshot-canvas" style="display: none;"></canvas>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/register.js') }}?v=1.3"></script>
+{% endblock %}

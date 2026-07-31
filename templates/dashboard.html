@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Metric Cards Grid -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-header">
+            <span>Today's Customers</span>
+            <div class="metric-icon metric-purple">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+        </div>
+        <div id="stat-todays-customers" class="metric-value">0</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-header">
+            <span>Eligible Customers</span>
+            <div class="metric-icon metric-green">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </div>
+        </div>
+        <div id="stat-eligible-count" class="metric-value">0</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-header">
+            <span>Rejected Attempts</span>
+            <div class="metric-icon metric-red">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </div>
+        </div>
+        <div id="stat-rejected-count" class="metric-value">0</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-header">
+            <span>Total Alcohol Sold</span>
+            <div class="metric-icon metric-blue">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+            </div>
+        </div>
+        <div id="stat-total-sold" class="metric-value">0 ml</div>
+    </div>
+</div>
+
+<div class="grid-container mt-2">
+    <!-- Weekly Sales Chart -->
+    <div class="glass-card col-6">
+        <div class="card-title">
+            <span>Weekly Sales Report</span>
+            <span class="status-badge badge-success">Daily Volume</span>
+        </div>
+        <div class="chart-container">
+            <div id="weekly-chart" class="bar-chart">
+                <!-- JavaScript will populate bars here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Sales Chart -->
+    <div class="glass-card col-6">
+        <div class="card-title">
+            <span>Monthly Sales Report</span>
+            <span class="status-badge badge-success">Weekly Volume</span>
+        </div>
+        <div class="chart-container">
+            <div id="monthly-chart" class="bar-chart">
+                <!-- JavaScript will populate bars here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-Time AI Risk Alerts -->
+    <div class="glass-card col-12">
+        <div class="card-title" style="color: var(--danger);">
+            <span style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                AI Security & Risk Alerts
+            </span>
+            <span class="status-badge badge-danger">Real-time detection</span>
+        </div>
+        
+        <div id="alerts-container" class="alerts-list">
+            <!-- Populated via JS -->
+            <p style="color: var(--text-muted); font-size: 0.95rem; text-align: center; padding: 2rem;">No suspicious activities detected today.</p>
+        </div>
+    </div>
+
+    <!-- Customer Purchase History Portal -->
+    <div class="glass-card col-12">
+        <div class="card-title">
+            <span>Customer Purchase History & Limit Ledger</span>
+            <span class="status-badge badge-success">Audit trail</span>
+        </div>
+        
+        <div class="form-group" style="max-width: 400px; margin-bottom: 1.5rem;">
+            <label for="history-customer-select">Search / Select Customer Profile</label>
+            <select id="history-customer-select" class="form-control" onchange="loadCustomerHistory()">
+                <option value="">-- Choose registered customer --</option>
+                {% for shop in shops %}
+                    <!-- We just need customers here, loaded via window object or AJAX -->
+                {% endfor %}
+            </select>
+        </div>
+
+        <div id="history-details-card" style="display: none; grid-template-columns: 1fr 2fr; gap: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;" class="fade-in">
+            <!-- Customer demographic details and remaining limits -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem; border-right: 1px solid var(--border-color); padding-right: 2rem;">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <img id="hist-photo" src="" style="width: 80px; height: 80px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-color);">
+                    <div>
+                        <h4 id="hist-name" style="font-size: 1.2rem; font-weight: 600;">Customer Name</h4>
+                        <p id="hist-id" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">ID: -</p>
+                        <p id="hist-dob" style="font-size: 0.85rem; color: var(--text-secondary);">DOB: -</p>
+                    </div>
+                </div>
+
+                <!-- Stored Identity Document Display in Dashboard -->
+                <div id="hist-id-doc-wrapper" style="display: none; margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block; margin-bottom: 0.3rem;">Government ID Document</label>
+                    <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.2); padding: 0.25rem;">
+                        <img id="hist-id-doc-photo" src="" style="max-width: 100%; max-height: 120px; display: block; margin: 0 auto; object-fit: contain;">
+                    </div>
+                </div>
+
+                <div class="limit-bar-wrapper">
+                    <div class="limit-info">
+                        <span>Weekly Limit (180 ml)</span>
+                        <span id="hist-weekly-text">-</span>
+                    </div>
+                    <div class="limit-bar-outer">
+                        <div id="hist-weekly-bar" class="limit-bar-inner"></div>
+                    </div>
+                </div>
+
+                <div class="limit-bar-wrapper">
+                    <div class="limit-info">
+                        <span>Monthly Limit (920 ml)</span>
+                        <span id="hist-monthly-text">-</span>
+                    </div>
+                    <div class="limit-bar-outer">
+                        <div id="hist-monthly-bar" class="limit-bar-inner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ledger Table -->
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Purchase Date</th>
+                            <th>Time</th>
+                            <th>Shop Location</th>
+                            <th>Quantity (ml)</th>
+                            <th>Rem. Weekly (ml)</th>
+                            <th>Rem. Monthly (ml)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <!-- History rows -->
+                    </tbody>
+                </table>
+                <div id="history-empty-message" style="display: none; text-align: center; color: var(--text-muted); padding: 3rem 0;">
+                    No transactions found for this customer.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
